@@ -15,6 +15,7 @@ use pocketmine\utils\TextFormat as Color;
 class Main extends PluginBase implements Listener {
     
     public $busy = array();
+    public $lastKiller = array();
     
     public function onEnable() {
         @mkdir($this->getDataFolder());
@@ -27,11 +28,52 @@ class Main extends PluginBase implements Listener {
     
     public function onCommand(CommandSender $sender, Command $command, $label, array $args) {
         if($sender instanceof Player) {
+            $level = $sender->getLevel()->getName();
             if($this->getConfig()->get("Enabled") == true) {
                 if($this->getConfig()->getNested("enabledWorlds.$level") === 'enabled') {
                     if(!isset($this->busy[$sender->getName()])) {
-                        if($thi) {
-                            
+                        if($this->isConfigSet()) {
+                            if(strtolower($command) == 'revenge') {
+                                switch (count($args)) {
+                                    case 0:
+                                        if(isset($this->lastKiller[$sender->getName()])) {
+                                            $this->sendInvite($sender->getName());
+                                            return true;
+                                        } else {
+                                            $sender->sendMessage(Color::RED."You must have a killer to do this.");
+                                            return true;
+                                        }
+                                    case 1:
+                                        if(strtolower($args[0]) == 'accept') {
+                                            if($this->checkRequests($sender->getName())) {
+                                                $this->startDuel($sender->getName());
+                                                return true;
+                                            } else {
+                                                $sender->sendMessage(Color::RED."You have no requests.");
+                                                return true;
+                                            }
+                                        }
+                                        if(strtolower($args[0]) == 'deny') {
+                                            if($this->checkRequests($sender->getName())) {
+                                                $this->sendDeny($sender->getName());
+                                                return true;
+                                            } else {
+                                                $sender->sendMessage(Color::RED."You have no requests.");
+                                                return true;
+                                            }
+                                        }
+                                        if(strtolower($args[0]) == 'stats') {
+                                            $this->sendStats($sender->getName());
+                                            return true;
+                                        }
+                                        if(strtolower($args[0]) == 'help') {
+                                            $this->sendHelp($sender);
+                                            return true;
+                                        }
+                                        $sender->sendMessage(Color::RED."That subcommand is invalid. /revenge help");
+                                        return;
+                                }
+                            }
                         }
                     }
                 }
@@ -45,14 +87,26 @@ class Main extends PluginBase implements Listener {
                 if($this->getConfig()->getNested("sessionInfo.mainPlayersInvisibleToOthers") !== null) {
                     if($this->getConfig()->getNested("sessionInfo.punishOnLeave") !== null) {
                         if($this->getConfig()->getNested("sessionInfo.sessionLives") !== null) {
-                            if($this->getConfig()->getNested("sessionInfo.") !== null) {
-                                
+                            if($this->getConfig()->getNested("sessionInfo.blockAlCommands") !== null) {
+                                if($this->getConfig()->getNested("arenaInfo.world") !== null) {
+                                    if($this->getConfig()->getNested("arenaInfo.worldX") !== null) {
+                                        if($this->getConfig()->getNested("arenaInfo.worldY") !== null) {
+                                            if($this->getConfig()->getNested("arenaInfo.worldZ") !== null) {
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+    
+    public function sendInvite($player) {
+        
     }
 }
 
