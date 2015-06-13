@@ -20,8 +20,18 @@ class EndGame extends PluginTask {
         $this->p2->sendMessage(Color::DARK_PURPLE."Duel Ending...");
         unset($this->busy[$this->p1->getName()]);
         unset($this->busy[$this->p2->getName()]);
-        $this->p1->teleport($this->plugin->getDefaultLevel()->getSpawnLocation());
-        $this->p2->teleport($this->plugin->getDefaultLevel()->getSpawnLocation());
+        $this->p1->teleport($this->plugin->getServer()->getDefaultLevel()->getSpawnLocation());
+        $this->p2->teleport($this->plugin->getServer()->getDefaultLevel()->getSpawnLocation());
+        foreach($this->plugin->getServer()->getOnlinePlayers() as $p) {
+            if($p == $this->p1) {
+                $p->spawnToAll();
+            }
+            if($p == $this->p2) {
+                $p->spawnToAll();
+            }
+            $p->spawnTo($this->p1);
+            $p->spawnTo($this->p2);
+        }
         return;
     }
 }
