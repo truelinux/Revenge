@@ -86,6 +86,8 @@ class Main extends PluginBase implements Listener {
         }
     }
     
+    //======================================CONFIGCHECK===================================\\
+    
     public function isConfigSet() {
         if($this->getConfig()->getNested("sessionInfo.sessionTime") !== null) {
             if($this->getConfig()->getNested("sessionInfo.otherPlayerInvisible") !== null) {
@@ -110,6 +112,8 @@ class Main extends PluginBase implements Listener {
         }
     }
     
+    //======================================SENDINVITE===================================\\
+    
     public function sendInvite(Player $player) {
         $name = $player->getName();
         $killer = $this->lastKiller[$name];
@@ -120,6 +124,8 @@ class Main extends PluginBase implements Listener {
         return;
     }
     
+    //======================================REQUESTS===================================\\
+    
     public function checkRequests(Player $player) {
         $name = $player->getName();
         foreach($this->invites as $p) {
@@ -129,6 +135,8 @@ class Main extends PluginBase implements Listener {
         }
         return false;
     }
+    
+    //======================================DENY===================================\\
     
     public function sendDeny(Player $player) {
         $name = $player->getName();
@@ -142,6 +150,8 @@ class Main extends PluginBase implements Listener {
         $player->sendMessage(Color::GRAY."> Request sent denied.");
         return;
     }
+    
+    //======================================STARTDUEL===================================\\
     
     public function startDuel(Player $player) {
         $name1 = $player->getName();
@@ -214,6 +224,8 @@ class Main extends PluginBase implements Listener {
         }
         return;
     }
+    
+    //======================================STATS===================================\\
     
     public function sendStats(Player $player) {
         $name = $player->getName();
