@@ -322,9 +322,38 @@ class Main extends PluginBase implements Listener {
                 if($damger instanceof Player) {
                     $damager = $damger->getName();
                     $this->lastKiller[$name] = $damager;
-                    return;
                 }
-            }                 
+            } 
+            if(isset($this->busy[$name])) {
+                $p2 = $this->getServer()->getPlayer($this->busy[$name]);
+                $name2 = $p2->getName();
+                $player->teleport($this->getServer()->getDefaultLevel()->getSpawnLocation());
+                $p2->teleport($this->getServer()->getDefaultLevel()->getSpawnLocation());
+                $this->getServer()->broadcastMessage(Color::GRAY."> ".Color::GOLD."$name2 ".Color::DARK_PURPLE."won the 1v1 battle against $name");
+                foreach($this->getServer()->getOnlinePlayers() as $p) {
+                    if($p == $player) {
+                        $p->spawnToAll();
+                    }
+                    if($p == $p2) {
+                        $p->spawnToAll();
+                    }
+                    $p->spawnTo($player);
+                    $p->spawnTo($p2);
+                }
+                $stat = $this->db->query("SELECT * FROM stats WHERE player='$name';");
+                $result = $stat->fetchArray(SQLITE3_ASSOC);
+                $loss = $result["loss"];
+                $ins = $this->db->prepare("INSERT OR REPLACE INTO stats (loss) VALUES (:loss);");
+                $ins->bindValue(":loss", $loss + 1);
+                $result = $ins->execute();
+                $stat = $this->db->query("SELECT * FROM stats WHERE player='$name2';");
+                $result = $stat->fetchArray(SQLITE3_ASSOC);
+                $loss = $result["won"];
+                $ins = $this->db->prepare("INSERT OR REPLACE INTO stats (won) VALUES (:won);");
+                $ins->bindValue(":won", $won + 1);
+                $result = $ins->execute();
+                return true;
+            }
         }
     }
     
@@ -348,6 +377,14 @@ class Main extends PluginBase implements Listener {
             $ins = $this->db->prepare("INSERT OR REPLACE INTO stats (won) VALUES (:won);");
             $ins->bindValue(":won", $won + 1);
             $result = $ins->execute();
+            $p2 = $this->getServer()->getPlayer($name2);
+            $p2->teleport($this->getServer()->getDefaultLevel()->getSpawnLocation());
+            foreach($this->getServer()->getOnlinePlayers() as $p) {
+                if($p == $p2) {
+                    $p->spawnToAll();
+                }
+                $p->spawnTo($p2);
+            }
             $this->getServer()->broadcastMessage(Color::GRAY."> ".Color::GOLD."$name2 ".Color::DARK_PURPLE."won the 1v1 battle against $name");
             unset($this->busy[$this->busy[$name]]);
             unset($this->busy[$name]);
