@@ -16,6 +16,7 @@ use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\player\PlayerMoveEvent;
 use pocketmine\event\player\PlayerDeathEvent;
+use pocketmine\event\player\PlayerCommandPreprocessEvent;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 
 class Main extends PluginBase implements Listener {
@@ -32,6 +33,15 @@ class Main extends PluginBase implements Listener {
         $this->reloadConfig();
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         $this->db = new \SQLite3($this->getDataFolder() . "Stats.db");
+        $this->getConfig()->setNested("sessionInfo.sessionTime", 60);
+        $this->getConfig()->setNested("sessionInfo.otherPlayersInvisible", 'true');
+        $this->getConfig()->setNested("sessionInfo.mainPlayersInvisibleToOthers", 'true');
+        $this->getConfig()->setNested("sessionInfo.punishOnLeave", 'true');
+        $this->getConfig()->setNested("sessionInfo.blockAllCommands", 'true');
+        $this->getConfig()->setNested("arenaInfo.worldName", null);
+        $this->getConfig()->setNested("arenaInfo.posX", null);
+        $this->getConfig()->setNested("arenaInfo.posX", null);
+        $this->getConfig()->setNested("arenaInfo.posX", null);
         $this->isConfigSet();
         $this->punishsaved = new Config($this->getDataFolder(). "PendingPunishments.yml", Config::YAML);
         $this->punish = $this->punishsaved->getAll();
@@ -99,7 +109,7 @@ class Main extends PluginBase implements Listener {
     
     public function isConfigSet() {
         if($this->getConfig()->getNested("sessionInfo.sessionTime") !== null) {
-            if($this->getConfig()->getNested("sessionInfo.otherPlayerInvisible") !== null) {
+            if($this->getConfig()->getNested("sessionInfo.otherPlayersInvisible") !== null) {
                 if($this->getConfig()->getNested("sessionInfo.mainPlayersInvisibleToOthers") !== null) {
                     if($this->getConfig()->getNested("sessionInfo.punishOnLeave") !== null) {
                         if($this->getConfig()->getNested("sessionInfo.sessionLives") !== null) {
@@ -139,9 +149,25 @@ class Main extends PluginBase implements Listener {
                             $this->getServer()->getPluginManager()->disablePlugin($this);
                             return;
                         }
+                    } else {
+                        $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                        $this->getServer()->getPluginManager()->disablePlugin($this);
+                        return;
                     }
+                } else {
+                    $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                    $this->getServer()->getPluginManager()->disablePlugin($this);
+                    return;
                 }
+            } else {
+                $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                $this->getServer()->getPluginManager()->disablePlugin($this);
+                return;
             }
+        } else {
+            $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+            $this->getServer()->getPluginManager()->disablePlugin($this);
+            return;
         }
     }
     
@@ -267,7 +293,8 @@ class Main extends PluginBase implements Listener {
             $ins->bindValue(":battles", $pbattles + 1);
             $result = $ins->execute();
         }
-        $this->getServer()->getScheduler()->scheduleDelayedTask(new EndGame($this, $p1, $p2), 60*20);
+        $end = $this->getConfig()->getNested("sessionInfo.sessionTime");
+        $this->getServer()->getScheduler()->scheduleDelayedTask(new EndGame($this, $p1, $p2), $end*20);
         return;
     }
     
@@ -308,6 +335,16 @@ class Main extends PluginBase implements Listener {
         if(isset($this->standby[$name])) {
             $event->setCancelled();
             $player->sendTip(Color::GRAY."Duel Has Not Started Yet!");
+            return;
+        }
+    }
+    
+    public function onCommandProcess(PlayerCommandPreprocessEventEvent $event) {
+        $player = $event->getPlayer();
+        $name = $player->getName();
+        if(isset($this->busy[$name])) {
+            $event->setCancelled();
+            $player->sendTip(Color::RED."You cant do that here!");
             return;
         }
     }
