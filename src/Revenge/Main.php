@@ -12,6 +12,11 @@ use pocketmine\event\Listener;
 use pocketmine\Player;
 use pocketmine\utils\TextFormat as Color;
 use pocketmine\math\Vector3;
+use pocketmine\event\player\PlayerJoinEvent;
+use pocketmine\event\player\PlayerQuitEvent;
+use pocketmine\event\player\PlayerMoveEvent;
+use pocketmine\event\player\PlayerDeathEvent;
+use pocketmine\event\entity\EntityDamageByEntityEvent;
 
 class Main extends PluginBase implements Listener {
     
@@ -19,6 +24,7 @@ class Main extends PluginBase implements Listener {
     public $lastKiller = array();
     public $invites = array();
     public $standby = array();
+    public $punish = array();
     
     public function onEnable() {
         @mkdir($this->getDataFolder());
@@ -26,6 +32,9 @@ class Main extends PluginBase implements Listener {
         $this->reloadConfig();
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         $this->db = new \SQLite3($this->getDataFolder() . "Stats.db");
+        $this->isConfigSet();
+        $this->punishsaved = new Config($this->getDataFolder(). "PendingPunishments.yml", Config::YAML);
+        $this->punish = $this->punishsaved->getAll();
         $this->db->exec("CREATE TABLE IF NOT EXISTS stats (player VARCHAR, battles INTEGER, won INTEGER, loss INTEGER);");
         $this->getLogger()->info(Color::GREEN."Revenge - Enabled");
         return;
@@ -100,11 +109,35 @@ class Main extends PluginBase implements Listener {
                                         if($this->getConfig()->getNested("arenaInfo.posY") !== null) {
                                             if($this->getConfig()->getNested("arenaInfo.posZ") !== null) {
                                                 return true;
+                                            } else {
+                                                $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                                                $this->getServer()->getPluginManager()->disablePlugin($this);
+                                                return;
                                             }
+                                        } else {
+                                            $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                                            $this->getServer()->getPluginManager()->disablePlugin($this);
+                                            return;
                                         }
+                                    } else {
+                                        $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                                        $this->getServer()->getPluginManager()->disablePlugin($this);
+                                        return;
                                     }
+                                } else {
+                                    $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                                    $this->getServer()->getPluginManager()->disablePlugin($this);
+                                    return;
                                 }
+                            } else {
+                                $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                                $this->getServer()->getPluginManager()->disablePlugin($this);
+                                return;
                             }
+                        } else {
+                            $this->getLogger()->error("ERROR: Please configure the plugin correctly. Disabling Plugin!");
+                            $this->getServer()->getPluginManager()->disablePlugin($this);
+                            return;
                         }
                     }
                 }
@@ -180,9 +213,21 @@ class Main extends PluginBase implements Listener {
         $p1->teleport($pos);
         $p2->teleport($this->getServer()->getLevelByName($world)->getSpawnLocation());
         $p2->teleport($pos2);
+        $p1->despawnFromAll();
+        $p2->despawnFromAll();
+        foreach($this->getServer()->getOnlinePlayers() as $p) {
+            if($p == $p1) {
+                $p->spawnTo($p2);
+            }
+            if($p == $p2) {
+                $p->spawnTo($p1);
+            }
+            $p->despawnFrom($p1);
+            $p->despawnFrom($p2);
+        }
         unset($this->invites[$name2]);
-        $this->busy[$name1] = "TRUE";
-        $this->busy[$name2] = "TRUE";
+        $this->busy[$name1] = $name2;
+        $this->busy[$name2] = $name1;
         $this->standby[$name1] = "TRUE";
         $this->standby[$name2] = "TRUE";
         $this->getServer()->getScheduler()->scheduleDelayedTask(new Timer($this, $p1, $p2, 5), 5*20);
@@ -222,6 +267,7 @@ class Main extends PluginBase implements Listener {
             $ins->bindValue(":battles", $pbattles + 1);
             $result = $ins->execute();
         }
+        $this->getServer()->getScheduler()->scheduleDelayedTask(new EndGame($this, $p1, $p2), 60*20);
         return;
     }
     
@@ -243,6 +289,75 @@ class Main extends PluginBase implements Listener {
         Color::GOLD."Wins: ".Color::RED."$won\n".
         Color::GOLD."Loss: ".Color::RED."$loss\n".
         Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-".Color::RED."-".Color::GOLD."-\n");
+        return;
+    }
+    
+    public function onJoin(PlayerJoinEvent $event) {
+        $player = $event->getPlayer();
+        $name = $player->getName();
+        if(isset($this->punish[$name])) {
+            $player->kill();
+            $this->getServer()->broadcastMessage(Color::GRAY."> ".Color::GOLD."$name ".Color::RED."was punished for leaving while in a 1v1.");
+            return;
+        }
+    }
+    
+    public function onMove(PlayerMoveEvent $event) {
+        $player = $event->getPlayer();
+        $name = $player->getName();
+        if(isset($this->standby[$name])) {
+            $event->setCancelled();
+            $player->sendTip(Color::GRAY."Duel Has Not Started Yet!");
+            return;
+        }
+    }
+    
+    public function onDeath(PlayerDeathEvent $event) {
+        $player = $event->getEntity();
+        $name = $player->getName();
+        if($this->getConfig()->get("Enabled")) {
+            $cause = $player->getLastDamageCause();
+            if($cause instanceof EntityDamageByEntityEvent) {
+                $damger = $cause->getDamager();
+                if($damger instanceof Player) {
+                    $damager = $damger->getName();
+                    $this->lastKiller[$name] = $damager;
+                    return;
+                }
+            }                 
+        }
+    }
+    
+    public function onQuit(PlayerQuitEvent $event) {
+        $player = $event->getPlayer();
+        $name = $player->getName();
+        if(isset($this->busy[$name])) {
+            if($this->getConfig()->getNested("sessionInfo.punishOnLeave") == "true") {
+                $this->punish[$name] = "TRUE";
+            }
+            $name2 = $this->busy[$name];
+            $stat = $this->db->query("SELECT * FROM stats WHERE player='$name';");
+            $result = $stat->fetchArray(SQLITE3_ASSOC);
+            $loss = $result["loss"];
+            $ins = $this->db->prepare("INSERT OR REPLACE INTO stats (loss) VALUES (:loss);");
+            $ins->bindValue(":loss", $loss + 1);
+            $result = $ins->execute();
+            $stat = $this->db->query("SELECT * FROM stats WHERE player='$name2';");
+            $result = $stat->fetchArray(SQLITE3_ASSOC);
+            $loss = $result["won"];
+            $ins = $this->db->prepare("INSERT OR REPLACE INTO stats (won) VALUES (:won);");
+            $ins->bindValue(":won", $won + 1);
+            $result = $ins->execute();
+            $this->getServer()->broadcastMessage(Color::GRAY."> ".Color::GOLD."$name2 ".Color::DARK_PURPLE."won the 1v1 battle against $name");
+            unset($this->busy[$this->busy[$name]]);
+            unset($this->busy[$name]);
+            return;
+        }
+    }
+    
+    public function onDisable() {
+        $this->punishsaved->setAll($this->punish);
+        $this->db->close;
         return;
     }
 }
