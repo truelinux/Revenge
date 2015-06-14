@@ -16,7 +16,10 @@ class EndGame extends PluginTask {
     }
     
     public function onRun($currentTick) {
-        $this->pl->sendMessage(Color::DARK_PURPLE."Duel Ending...");
+        if(!isset($this->plugin->busy[$this->p1->getName()])) {
+            return;
+        }
+        $this->p1->sendMessage(Color::DARK_PURPLE."Duel Ending...");
         $this->p2->sendMessage(Color::DARK_PURPLE."Duel Ending...");
         unset($this->busy[$this->p1->getName()]);
         unset($this->busy[$this->p2->getName()]);

@@ -1,0 +1,15 @@
+---
+Enabled: true
+enabledWorlds:
+- world
+- jumbo
+Session:
+  Time: 60
+  punishOnLeave: true
+  blockAllCommands: true
+Arena:
+  World: ~
+  X: ~
+  "Y": ~
+  Z: ~
+...
